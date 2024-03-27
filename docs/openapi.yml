@@ -1,0 +1,880 @@
+asyncapi: 2.2.0
+
+info:
+  title: Match Engine Websockets API
+  version: '1.0.5'
+  description: " ## 撮合引擎接口文档   \n\n
+  撮合引擎是配合交易所撮合玩法的子服务，所有撮合交易请求需经过交易所撮合玩法进入撮合引擎，撮合引擎不对外提供服务。 \n
+  撮合引擎服务提供ws:8888和http:8888服务，ws为业务服务，http为获取服务状态。   \n
+  accessKey为32位长度字符串。建立多个trade或market连接时，accessKey需要保证唯一性。 \n\n
+  撮合交易地址：ws trade: ws://server:8888/d2b46d3f-8442-4eec-a11d-bde0bc78/trade   \n
+  撮合行情地址：ws market: ws://server:8888/d2b46d3f-8442-4eec-a11d-bde0bc78/market   \n\n
+  ### history   \n
+  * 0.5.0 新建接口文档 TradeMatcher/justin 20210722   \n
+  * 0.5.0 新建撮合引擎快照接口 TradeMatcher/justin 20210723\n
+  * 0.5.0 新建产品查询、订单查询接口 TradeMatcher/justin 20210727\n
+  * 0.5.0 添加撮合事件编号 TradeMatcher/justin 20210729\n
+  * 0.5.0 调整match_maker总金额totalPrice为字符串类型，去掉market_result信息  TradeMatcher/justin 20210812\n
+  * 0.5.0 去掉校验，使用accessKey直接连接ws  TradeMatcher/justin 20210823\n
+  * 0.5.0 新增FAK按量卖  TradeMatcher/justin 20210826\n
+  * 0.5.0 match_maker事件新增takerOrderId和takerCompanyId  TradeMatcher/justin 20210902 \n
+  * 0.5.0 SymbolCommand新增资产小数位，taker、maker、reject、market信息添加时间戳和资产小数位  TradeMatcher/justin 20210909 \n
+  * 0.5.0 PlaceOrder新增单笔最小数量字段minSize  TradeMatcher/justin 20211012 \n
+  * 0.5.0 PlaceOrder新增数量小数位字段volumeDigits  TradeMatcher/justin 20211018 \n
+  * 0.5.0 PlaceOrder新增成交模式字段tradeType  TradeMatcher/justin 20211018 \n
+  * 0.5.0 CancelOrder新增成交模式字段tradeType  TradeMatcher/justin 20211027 \n"
+
+servers:
+  uat:
+    url: '172.31.0.124:8888'
+    protocol: ws
+    description: |
+      撮合引擎测试环境地址
+
+  pre:
+    url: '172.31.16.124:8888'
+    protocol: ws
+    description: |
+      撮合引擎测试环境地址
+
+  prd:
+    url: me.tradematcher.com
+    protocol: ws
+    description: |
+      撮合引擎生产环境地址
+defaultContentType: application/json
+
+channels:
+  '/{accessKey}/trade':
+    parameters:
+      accessKey:
+        $ref: '#/components/parameters/accessKey'
+    publish:
+      description: 交易请求
+      message:
+        oneOf:
+          - $ref: '#/components/messages/symbol'
+          - $ref: '#/components/messages/symbolList'
+          - $ref: '#/components/messages/placeOrder'
+          - $ref: '#/components/messages/cancelOrder'
+          - $ref: '#/components/messages/queryOrder'
+          - $ref: '#/components/messages/snapshot'
+    subscribe:
+      description: 交易结果
+      message:
+        oneOf:
+          - $ref: '#/components/messages/symbol_result'
+          - $ref: '#/components/messages/symbolList_result'
+          - $ref: '#/components/messages/placeOrder_result'
+          - $ref: '#/components/messages/cancelOrder_result'
+          - $ref: '#/components/messages/queryOrder_result'
+          - $ref: '#/components/messages/snapshot_result'
+          - $ref: '#/components/messages/match_maker_event'
+          - $ref: '#/components/messages/match_taker_event'
+          - $ref: '#/components/messages/match_reject_event'
+  '/{accessKey}/market':
+    parameters:
+      accessKey:
+        $ref: '#/components/parameters/accessKey'
+    publish:
+      description: 行情请求
+      message:
+        oneOf:
+          - $ref: '#/components/messages/market'
+    subscribe:
+      description: 行情响应
+      message:
+        oneOf:
+          - $ref: '#/components/messages/market_event'
+
+
+components:
+  messages:
+    symbol:
+      description: 创建产品命令(trade)
+      contentType: application/json
+      payload:
+        $ref: '#/components/schemas/symbol'
+    symbol_result:
+      description: 创建产品命令执行结果(trade)
+      payload:
+        $ref: '#/components/schemas/symbol_result'
+    symbolList:
+      description: 产品列表命令(trade/market)
+      contentType: application/json
+      payload:
+        $ref: '#/components/schemas/symbolList'
+    symbolList_result:
+      description: 产品列表命令执行结果(trade)
+      payload:
+        $ref: '#/components/schemas/symbolList_result'
+    placeOrder:
+      description: 下单命令(trade)
+      payload:
+        $ref: '#/components/schemas/placeOrder'
+    placeOrder_result:
+      description: 下单命令执行结果(trade)
+      payload:
+        $ref: '#/components/schemas/placeOrder_result'
+    cancelOrder:
+      description: 撤单命令(trade)
+      payload:
+        $ref: '#/components/schemas/cancelOrder'
+    cancelOrder_result:
+      description: 撤单命令执行结果(trade)
+      payload:
+        $ref: '#/components/schemas/cancelOrder_result'
+    queryOrder:
+      description: 查单命令(trade)
+      payload:
+        $ref: '#/components/schemas/queryOrder'
+    queryOrder_result:
+      description: 查单执行结果(trade)
+      payload:
+        $ref: '#/components/schemas/queryOrder_result'
+    market:
+      description: 获取当前行情信息命令(market)
+      payload:
+        $ref: '#/components/schemas/market'
+    snapshot:
+      description: 创建当前撮合引擎快照命令(trade)
+      payload:
+        $ref: '#/components/schemas/snapshot'
+    snapshot_result:
+      description: 创建当前撮合引擎快照命令结果(trade)
+      payload:
+        $ref: '#/components/schemas/snapshot_result'
+    match_maker_event:
+      description: 撮合maker事件(trade/market)
+      payload:
+        $ref: '#/components/schemas/match_maker_event'
+    match_taker_event:
+      description: 撮合taker事件(trade)
+      payload:
+        $ref: '#/components/schemas/match_taker_event'
+    match_reject_event:
+      description: 撮合reject事件(trade)
+      payload:
+        $ref: '#/components/schemas/match_reject_event'
+    market_event:
+      description: 行情事件(market)
+      payload:
+        $ref: '#/components/schemas/market_event'
+
+  schemas:
+    symbol:
+      type: object
+      properties:
+        command:
+          type: string
+          description: 创建产品请求
+          const: symbol
+        accessKey:
+          type: string
+          description: 撮合引擎给平台分配的accessKey
+          maxLength: 32
+          minLength: 32
+        symbolId:
+          type: integer
+          format: int32
+          description: 产品编号
+        symbolType:
+          type: integer
+          format: byte
+          description: "产品类型     \n 3 = 现货撮合产品"
+          enum:
+            - 3
+        symbolDecimal:
+          type: integer
+          format: int32
+          description: 资产小数位(仅转发)
+      required:
+        - command
+        - accessKey
+        - symbolId
+        - symbolType
+        - symbolDecimal
+    symbol_result:
+      type: object
+      properties:
+        command:
+          type: string
+          description: 创建产品请求结果
+          const: symbol_result
+        code:
+          type: integer
+          format: int32
+          description: 响应码
+        msg:
+          type: string
+          description: 响应描述
+        origin:
+          type: object
+          description: 原始请求
+          $ref: '#/components/schemas/symbol'
+      required:
+        - command
+        - code
+        - msg
+        - origin
+    symbolList:
+      type: object
+      properties:
+        command:
+          type: string
+          description: 产品列表请求
+          const: symbolList
+        accessKey:
+          type: string
+          description: 撮合引擎给平台分配的accessKey
+          maxLength: 32
+          minLength: 32
+      required:
+        - command
+        - accessKey
+    symbolList_result:
+      type: object
+      properties:
+        command:
+          type: string
+          description: 产品列表请求结果
+          const: symbolList_result
+        code:
+          type: integer
+          format: int32
+          description: 响应码
+        msg:
+          type: string
+          description: 响应描述
+        info:
+          type: array
+          format: int32
+          description: 产品编号列表
+        origin:
+          type: object
+          description: 原始请求
+          $ref: '#/components/schemas/symbolList'
+      required:
+        - command
+        - code
+        - msg
+        - origin
+    placeOrder:
+      type: object
+      properties:
+        accessKey:
+          type: string
+          descrption: 撮合引擎给平台分配的accessKey
+          maxLength: 32
+          minLength: 32
+        command:
+          type: string
+          description: 下单请求
+          const: placeOrder
+        companyId:
+          type: integer
+          format: int32
+          description: 公司编号
+        symbolId:
+          type: integer
+          format: int32
+          description: 产品编号
+        uid:
+          type: integer
+          format: int64
+          description: 用户编号
+        orderId:
+          type: integer
+          format: int64
+          description: 订单编号
+        price:
+          type: integer
+          format: int64
+          description: "下单价格     \n 限价单 = 单价     \n 市价单 = 总价"
+        size:
+          type: integer
+          format: int64
+          description: "下单数量     \n 限价单 = 数量     \n FAK市价卖单 = 数量"
+        action:
+          type: integer
+          format: int8
+          description: "买卖方向     \n ASK = 0     \n BID = 1"
+          enum:
+            - 0
+            - 1
+        orderType:
+          type: integer
+          format: int8
+          description: "订单类型     \n MARKET_FOK = 5     \n MARKET_FAK = 6     \n MARKET_MTL = 7     \n LIMIT_GTC = 8"
+          enum:
+            - 5
+            - 6
+            - 7
+            - 8
+        reservePrice:
+          type: integer
+          format: int64
+          description: 市价单价格距离（自然数)
+        minSize:
+          type: integer
+          format: int64
+          description: 单笔最小数量
+        volumeDigits:
+          type: integer
+          format: int32
+          description: 数量小数位(仅转发)
+        tradeType:
+          type: integer
+          format: int32
+          description: 成交模式(仅转发)
+      required:
+        - accessKey
+        - command
+        - companyId
+        - symbolId
+        - uid
+        - orderId
+        - action
+        - orderType
+        - volumeDigits
+        - tradeType
+    placeOrder_result:
+      type: object
+      properties:
+        command:
+          type: string
+          description: 下单请求结果
+          const: placeOrder_result
+        code:
+          type: integer
+          format: int32
+          description: 响应码
+        msg:
+          type: string
+          description: 响应描述
+        origin:
+          type: object
+          description: 原始请求
+          $ref: '#/components/schemas/placeOrder'
+      required:
+        - command
+        - code
+        - msg
+        - origin
+    cancelOrder:
+      type: object
+      properties:
+        accessKey:
+          type: string
+          descrption: 撮合引擎给平台分配的accessKey
+          maxLength: 32
+          minLength: 32
+        command:
+          type: string
+          description: 撤单请求
+          const: cancelOrder
+        companyId:
+          type: integer
+          format: int32
+          description: 公司编号
+        symbolId:
+          type: integer
+          format: int32
+          description: 产品编号
+        uid:
+          type: integer
+          format: int64
+          description: 用户编号
+        orderId:
+          type: integer
+          format: int64
+          description: 订单编号
+        tradeType:
+          type: integer
+          format: int32
+          description: 成交模式(仅转发)
+      required:
+        - accessKey
+        - command
+        - companyId
+        - symbolId
+        - uid
+        - orderId
+        - tradeType
+    cancelOrder_result:
+      type: object
+      properties:
+        command:
+          type: string
+          description: 撤单请求结果
+          const: cancelOrder_result
+        code:
+          type: integer
+          format: int32
+          description: 响应码
+        msg:
+          type: string
+          description: 响应描述
+        origin:
+          type: object
+          description: 原始请求
+          $ref: '#/components/schemas/cancelOrder'
+      required:
+        - command
+        - code
+        - msg
+        - origin
+    queryOrder:
+      type: object
+      properties:
+        accessKey:
+          type: string
+          descrption: 撮合引擎给平台分配的accessKey
+          maxLength: 32
+          minLength: 32
+        command:
+          type: string
+          description: 查单请求
+          const: queryOrder
+        companyId:
+          type: integer
+          format: int32
+          description: 公司编号
+        symbolId:
+          type: integer
+          format: int32
+          description: 产品编号
+        uid:
+          type: integer
+          format: int64
+          description: 用户编号
+        orderId:
+          type: integer
+          format: int64
+          description: 订单编号
+      required:
+        - accessKey
+        - command
+        - companyId
+        - symbolId
+        - uid
+        - orderId
+    queryOrder_result:
+      type: object
+      properties:
+        command:
+          type: string
+          description: 撤单请求结果
+          const: cancelOrder_result
+        code:
+          type: integer
+          format: int32
+          description: 响应码
+        msg:
+          type: string
+          description: 响应描述
+        price:
+          type: integer
+          format: int64
+          description: "下单价格     \n 限价单 = 单价     \n 市价单 = 总价"
+        size:
+          type: integer
+          format: int64
+          description: "下单数量     \n 限价单 = 数量     \n FAK市价卖单 = 数量"
+        orderId:
+          type: integer
+          format: int64
+          description: 订单编号
+        action:
+          type: integer
+          format: int8
+          description: "买卖方向     \n ASK = 0     \n BID = 1"
+          enum:
+            - 0
+            - 1
+        reservePrice:
+          type: integer
+          format: int64
+          description: 市价单价格距离
+        timestamp:
+          type: integer
+          format: int64
+          description: 订单时间
+        filled:
+          type: integer
+          format: int64
+          description: 已撮合数量
+        origin:
+          type: object
+          description: 原始请求
+          $ref: '#/components/schemas/queryOrder'
+      required:
+        - command
+        - code
+        - msg
+        - price
+        - size
+        - orderId
+        - action
+        - timestamp
+        - filled
+        - origin
+    market:
+      type: object
+      properties:
+        accessKey:
+          type: string
+          descrption: 撮合引擎给平台分配的accessKey
+          maxLength: 32
+          minLength: 32
+        command:
+          type: string
+          description: 获取当前行情信息
+          const: market
+        symbolId:
+          type: integer
+          format: int32
+          description: 产品编号
+        depth:
+          type: integer
+          format: int32
+          description: 深度
+      required:
+        - accessKey
+        - command
+        - symbolId
+        - depth
+    snapshot:
+      type: object
+      properties:
+        accessKey:
+          type: string
+          descrption: 撮合引擎给平台分配的accessKey
+          maxLength: 32
+          minLength: 32
+        command:
+          type: string
+          description: 快照信息
+          const: snapshot
+      required:
+        - accessKey
+        - command
+    snapshot_result:
+      type: object
+      properties:
+        command:
+          type: string
+          description: 快照信息结果
+          const: snapshot_result
+        code:
+          type: integer
+          format: int32
+          description: 响应码
+        msg:
+          type: string
+          description: 响应描述
+        origin:
+          type: object
+          description: 原始请求
+          $ref: '#/components/schemas/snapshot'
+      required:
+        - command
+        - code
+        - msg
+        - origin
+    match_maker_event:
+      type: object
+      properties:
+        event:
+          type: string
+          description: 撮合maker事件
+          const: match_maker
+        eventId:
+          type: string
+          description: 撮合maker事件编号
+        symbolId:
+          type: integer
+          format: int32
+          description: 产品编号
+        orderId:
+          type: integer
+          format: int64
+          description: 订单编号
+        companyId:
+          type: integer
+          format: int32
+          description: 公司编号
+        uid:
+          type: integer
+          format: int64
+          description: 用户编号
+        completed:
+          type: boolean
+          description: 是否完成
+        price:
+          type: integer
+          format: int64
+          description: 撮合单价
+        volume:
+          type: integer
+          format: int64
+          description: 已撮合数量
+        action:
+          type: integer
+          format: int8
+          description: "买卖方向     \n ASK = 0     \n BID = 1"
+        takerOrderId:
+          type: integer
+          format: int64
+          description: taker订单编号
+        takerCompanyId:
+          type: integer
+          format: int32
+          description: taker公司编号
+        symbolDecimal:
+          type: integer
+          format: int32
+          description: 资产小数位(仅转发)
+        timestamp:
+          type: integer
+          format: int64
+          description: 时间戳
+        volumeDigits:
+          type: integer
+          format: int32
+          description: 数量小数位(仅转发)
+        tradeType:
+          type: integer
+          format: int32
+          description: 成交模式(仅转发)
+      required:
+        - event
+        - eventId
+        - symbolId
+        - orderId
+        - companyId
+        - uid
+        - completed
+        - price
+        - volume
+        - action
+        - takerOrderId
+        - takerCompanyId
+        - symbolDecimal
+        - timestamp
+        - volumeDigits
+        - tradeType
+    match_taker_event:
+      type: object
+      properties:
+        event:
+          type: string
+          description: 撮合taker事件
+          const: match_taker
+        eventId:
+          type: string
+          description: 撮合taker事件编号
+        symbolId:
+          type: integer
+          format: int32
+          description: 产品编号
+        orderId:
+          type: integer
+          format: int64
+          description: 订单编号
+        companyId:
+          type: integer
+          format: int32
+          description: 公司编号
+        uid:
+          type: integer
+          format: int64
+          description: 用户编号
+        completed:
+          type: boolean
+          description: 是否完成
+        totalPrice:
+          type: string
+          description: 撮合总价 sum(maker单价 * maker数量)
+        totalVolume:
+          type: integer
+          format: int64
+          description: 撮合总数量 sum(maker数量)
+        action:
+          type: integer
+          format: int8
+          description: "买卖方向     \n ASK = 0     \n BID = 1"
+        symbolDecimal:
+          type: integer
+          format: int32
+          description: 资产小数位(仅转发)
+        timestamp:
+          type: integer
+          format: int64
+          description: 时间戳
+        volumeDigits:
+          type: integer
+          format: int32
+          description: 数量小数位(仅转发)
+        tradeType:
+          type: integer
+          format: int32
+          description: 成交模式(仅转发)
+      required:
+        - event
+        - eventId
+        - symbolId
+        - companyId
+        - orderId
+        - uid
+        - completed
+        - totalPrice
+        - totalVolume
+        - action
+        - symbolDecimal
+        - timestamp
+        - volumeDigits
+        - tradeType
+    match_reject_event:
+      type: object
+      properties:
+        event:
+          type: string
+          description: 撮合reject事件
+          const: match_reject
+        eventId:
+          type: string
+          description: 撮合reject事件编号
+        symbolId:
+          type: integer
+          format: int32
+          description: 产品编号
+        orderId:
+          type: integer
+          format: int64
+          description: 订单编号
+        companyId:
+          type: integer
+          format: int32
+          description: 公司编号
+        uid:
+          type: integer
+          format: int64
+          description: 用户编号
+        rejectedAmount:
+          type: integer
+          format: int64
+          description: 撮合拒绝金额
+        rejectedSize:
+          type: integer
+          format: int64
+          description: 撮合拒绝数量（FAK卖单）
+        action:
+          type: integer
+          format: int8
+          description: "买卖方向     \n ASK = 0     \n BID = 1"
+        symbolDecimal:
+          type: integer
+          format: int32
+          description: 资产小数位(仅转发)
+        timestamp:
+          type: integer
+          format: int64
+          description: 时间戳
+        volumeDigits:
+          type: integer
+          format: int32
+          description: 数量小数位(仅转发)
+        tradeType:
+          type: integer
+          format: int32
+          description: 成交模式(仅转发)
+      required:
+        - event
+        - eventId
+        - symbolId
+        - companyId
+        - orderId
+        - uid
+        - rejectedAmount
+        - rejectedSize
+        - action
+        - symbolDecimal
+        - timestamp
+        - volumeDigits
+        - tradeType
+    market_event:
+      type: object
+      properties:
+        event:
+          type: string
+          description: 行情事件
+          const: market
+        info:
+          type: object
+          description: 行情信息
+          $ref: '#/components/schemas/market_info'
+      required:
+        - event
+        - info
+    market_info:
+      type: object
+      properties:
+        symbol:
+          type: integer
+          format: int32
+          description: 产品编号
+        asks:
+          type: array
+          description: ask行情信息
+          $ref: '#/components/schemas/market_info_detail'
+        bids:
+          type: array
+          description: bid行情信息
+          $ref: '#/components/schemas/market_info_detail'
+        symbolDecimal:
+          type: integer
+          format: int32
+          description: 资产小数位(仅转发)
+        volumeDigits:
+          type: integer
+          format: int32
+          description: 数量小数位(仅转发)
+        timestamp:
+          type: integer
+          format: int64
+          description: 当前获取行情时间
+      required:
+        - symbol
+        - symbolDecimal
+        - volumeDigits
+        - asks
+        - bids
+        - timestamp
+    market_info_detail:
+      type: object
+      properties:
+        price:
+          type: integer
+          format: int64
+          description: 单价
+        volume:
+          type: integer
+          format: int64
+          description: 数量（深度）
+        orders:
+          type: integer
+          format: int32
+          description: 订单总数
+      required:
+        - price
+        - volume
+        - orders
+
+  parameters:
+    accessKey:
+      description: '连接唯一标识'
+      schema:
+        type: string
+        maxLength: 32
+        minLength: 32

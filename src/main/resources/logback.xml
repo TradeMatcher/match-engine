@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+
+<configuration scan="true">
+
+    <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>%d{yyyy-MM-dd/HH:mm:ss.SSS/zzz} [%thread] %-5level %logger{36}.%M\(%line\) - %msg%n</pattern>
+        </encoder>
+    </appender>
+
+    <appender name="LogFile" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+            <fileNamePattern>/var/task/log/new-match-engine-%d{yyyy-MM-dd}.%i.log.gz</fileNamePattern>
+            <maxHistory>30</maxHistory>
+            <maxFileSize>100MB</maxFileSize>
+        </rollingPolicy>
+        <encoder class="ch.qos.logback.classic.encoder.PatternLayoutEncoder">
+            <pattern>%d{yyyy-MM-dd/HH:mm:ss.SSS/zzz} [%thread] %-5level %logger{36}.%M\(%line\) - %msg%n</pattern>
+        </encoder>
+    </appender>
+
+    <logger name="org" level="INFO"/>
+    <logger name="net" level="INFO"/>
+    <logger name="com" level="INFO"/>
+    <logger name="com.tradematcher" level="DEBUG"/>
+
+    <root level="INFO">
+        <appender-ref ref="STDOUT"/>
+        <appender-ref ref="LogFile"/>
+    </root>
+
+</configuration>
